@@ -2,21 +2,41 @@ __author__ = 'Richard Foltyn'
 
 import numpy as np
 import io
+import collections
 
 from . import Alignment
 from . import TeXFormat
 
 
+def as_list(val):
+    if isinstance(val, list):
+        return val
+    elif isinstance(val, collections.Iterable):
+        return list(val)
+    else:
+        return [val]
+
+
 class Table(object):
     def __init__(self, data, header=None, row_labels=None,
-                 fmt=None, float_fmt='g', str_fmt='s', align='r',
+                 fmt=None, float_fmt='g', str_fmt='s', align=None,
                  sep_after=None, output_fmt=TeXFormat(booktabs=True)):
 
         self.data = np.atleast_2d(data)
+
+        assert self.data.shape[1] > 0 and self.data.shape[0] > 0
+
         self.__header = []
         self.ncol_data = self.data.shape[1]
+        self.ncol_head = 0
         self.nrow = self.data.shape[0]
-        self.kwargs = {'sep_after': sep_after}
+        self.kwargs = {'sep_after': int(sep_after)}
+
+        # validate arguments
+        '{{:{:s}}}'.format(float_fmt).format(1.0)
+        '{{:{:s}}}'.format(str_fmt).format('a')
+        if align is not None:
+            Alignment.parse(align)
 
         if row_labels is not None:
             if not isinstance(row_labels, (list, tuple, np.ndarray)):
@@ -33,8 +53,6 @@ class Table(object):
             self.ncol_head = row_labels.shape[1]
             row_labels = np.array(row_labels, dtype=object)
             self.data = np.hstack((row_labels, data))
-        else:
-            self.ncol_head = 0
 
         self.row_head = row_labels
         self.ncol = self.ncol_head + self.ncol_data
@@ -43,31 +61,51 @@ class Table(object):
             self.append_header(header)
 
         # column alignment, both header and data
-        align_arr = np.atleast_1d(align)
-        if align is None or align_arr.shape[0] == 1:
-            align = ['l'] * self.ncol_head + ['r'] * self.ncol_data
+        if align is not None:
+            align = as_list(align)
 
-        assert len(align) == self.ncol
+            # Got only one values, this must be for data columns. Project to
+            # all other data columns and add alignment for row labels if
+            # required.
+            if len(align) == 1:
+                align = ['l'] * self.ncol_head + align * self.ncol_data
+
+            # align list has length of col(data) > 1, or some other length.
+            # Try adding alignment for row labels have alignment values for
+            # all columns.
+            if len(align) == self.ncol_data and self.ncol_head > 0:
+                align = ['l'] * self.ncol_head + align
+
+            if len(align) != self.ncol:
+                raise ValueError('Alignment length not compatible with '
+                                 'data array')
+        else:
+            align = ['l'] * self.ncol_head + ['r'] * self.ncol_data
 
         # Data column formatting
         if fmt is not None:
-            lf = len(fmt)
-            if lf != self.ncol_data and lf != self.ncol:
-                raise ValueError('Format list has non-conformable length')
+            fmt = as_list(fmt)
 
-        # Apply one and only format spec to all data columns
-        if fmt is None or (len(fmt) == 1 and self.ncol_data != 1):
+            if len(fmt) == 1:
+                fmt = fmt * self.ncol_data
+
+            # We are missing formatting for row labels, so infer these from data
+            # types.
+            if len(fmt) == self.ncol_data and self.ncol_head > 0:
+                isreal = [np.isreal(x) for x in self.data[0, :self.ncol_head]]
+                fmt_lbl = list(np.where(isreal, float_fmt, str_fmt))
+                fmt = fmt_lbl + fmt
+
+            if len(fmt) != self.ncol:
+                raise ValueError('Format length not compatible with data array')
+        else:
+            # Infer default formatting from column data types for both row label
+            # and data columns.
             isreal = [np.isreal(x) for x in self.data[0]]
             fmt = list(np.where(isreal, float_fmt, str_fmt))
 
-        # We might need to add format specifiers for label columns, if these
-        # are missing.
-        if len(fmt) != self.ncol:
-            isreal = [np.isreal(x) for x in self.data[0, :self.ncol_head]]
-            fmt2 = list(np.where(isreal, float_fmt, str_fmt))
-            fmt = fmt2 + fmt
-
         assert len(fmt) == self.ncol
+        assert len(align) == self.ncol
 
         self.columns = [Column(align=a, fmt=f) for a, f in zip(align, fmt)]
 
@@ -132,10 +170,14 @@ class HeadRow(object):
 
 
 class HeadCell(object):
-    def __init__(self, text, span=1, align=Alignment.center):
+    def __init__(self, text, span=1, align=Alignment.center, sep=None):
         self.text = text
         self.span = span
         self.align = Alignment.parse(align)
+
+        # By default, only show bottom separator for cells spanning more than
+        # one column
+        self.sep = (sep is None and self.span > 1) or sep
 
     def __str__(self):
         return "HCol('{o.text}', span={o.span}, align={o.align})".format(
@@ -147,7 +189,7 @@ class HeadCell(object):
 
 class Column(object):
 
-    def __init__(self, align=Alignment.right, fmt='g'):
+    def __init__(self, align, fmt):
         self.fmt = fmt
         self.align = Alignment.parse(align)
 

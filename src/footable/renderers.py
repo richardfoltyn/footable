@@ -16,8 +16,9 @@ class TeXFormat(OutputFormat):
     mappings = {Alignment.left: 'l', Alignment.center: 'c',
                 Alignment.right: 'r'}
 
-    def __init__(self, booktabs=True):
+    def __init__(self, booktabs=True, cmidrule_trim=True):
         self.booktabs = booktabs
+        self.cmidrule_trim = cmidrule_trim
 
     def render(self, data, headers, columns, file, **kwargs):
 
@@ -41,32 +42,49 @@ class TeXFormat(OutputFormat):
     def render_header(self, headers, file):
 
         for i, hrow in enumerate(headers):
+            offset = 1
             cell_str = []
+            rules_str = []
             for j, hcell in enumerate(hrow):
-                if hcell.span > 1:
-                    s = r'\multicolumn{{{o.span}}}{{{a}}}{{{o.text}}}'.format(
-                        o=hcell, a=self.mappings[hcell.align])
-                else:
-                    s = hcell.text
-                cell_str.append(s)
+                cell_str.append(self.render_hcell(hcell))
+                if hcell.sep and self.booktabs:
+                    tr = ''
+                    if self.cmidrule_trim:
+                        tr = '(lr)'
+                    s = r'\cmidrule%s{%d-%d}' % \
+                        (tr, offset, offset + hcell.span - 1)
+                    rules_str.append(s)
+                offset += hcell.span
 
             print(' & '.join(cell_str) + r'\\', file=file)
+            if len(rules_str) > 0:
+                print(' '.join(rules_str), file=file)
 
         if self.booktabs and len(headers) > 0:
             print(r'\midrule', file=file)
 
     def render_data(self, data, columns, file, **kwargs):
-        if 'sep_line' in kwargs:
-            sl = int(kwargs['sep_line'])
+        if 'sep_after' in kwargs:
+            sl = int(kwargs['sep_after'])
         else:
             sl = np.inf
+
+        nrow = data.shape[0]
 
         fmt_list = ['{{arr[{:d}]:{:s}}}'.format(i, o.fmt)
                     for i, o in enumerate(columns)]
         fmt_str = ' & '.join(fmt_list) + r' \\'
 
-        for i in range(data.shape[0]):
+        for i in range(nrow):
             print(fmt_str.format(arr=data[i]), file=file)
 
-            if (i + 1) % sl == 0 and self.booktabs:
+            if self.booktabs and (i + 1) % sl == 0 and i != (nrow-1):
                 print(r'\midrule', file=file)
+
+    def render_hcell(self, hcell):
+        if hcell.span > 1:
+            s = r'\multicolumn{{{o.span}}}{{{a}}}{{{o.text}}}'.format(
+                o=hcell, a=self.mappings[hcell.align])
+        else:
+            s = hcell.text
+        return s
