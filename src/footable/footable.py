@@ -50,10 +50,22 @@ class Table(object):
         assert len(align) == self.ncol
 
         # Data column formatting
-        fmt_arr = np.atleast_1d(fmt)
-        if fmt is None or fmt_arr.shape[0] == 1:
+        if fmt is not None:
+            lf = len(fmt)
+            if lf != self.ncol_data and lf != self.ncol:
+                raise ValueError('Format list has non-conformable length')
+
+        # Apply one and only format spec to all data columns
+        if fmt is None or (len(fmt) == 1 and self.ncol_data != 1):
             isreal = [np.isreal(x) for x in self.data[0]]
             fmt = list(np.where(isreal, float_fmt, str_fmt))
+
+        # We might need to add format specifiers for label columns, if these
+        # are missing.
+        if len(fmt) != self.ncol:
+            isreal = [np.isreal(x) for x in self.data[0, :self.ncol_head]]
+            fmt2 = list(np.where(isreal, float_fmt, str_fmt))
+            fmt = fmt2 + fmt
 
         assert len(fmt) == self.ncol
 
