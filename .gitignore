@@ -1,0 +1,9 @@
+.idea/
+*~
+*.bak
+*.backup
+build/
+.spyder*
+*.pyc
+*.so
+*.pyd
