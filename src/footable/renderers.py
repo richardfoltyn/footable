@@ -47,7 +47,7 @@ class TeXFormat(OutputFormat):
             rules_str = []
             for j, hcell in enumerate(hrow):
                 cell_str.append(self.render_hcell(hcell))
-                if hcell.sep and self.booktabs:
+                if hcell.sep and self.booktabs and not hcell.placeholder:
                     tr = ''
                     if self.cmidrule_trim:
                         tr = '(lr)'
@@ -64,10 +64,7 @@ class TeXFormat(OutputFormat):
             print(r'\midrule', file=file)
 
     def render_data(self, data, columns, file, **kwargs):
-        if 'sep_after' in kwargs:
-            sl = int(kwargs['sep_after'])
-        else:
-            sl = np.inf
+        sl = kwargs['sep_after']
 
         nrow = data.shape[0]
 

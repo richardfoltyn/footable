@@ -30,7 +30,12 @@ class Table(object):
         self.ncol_data = self.data.shape[1]
         self.ncol_head = 0
         self.nrow = self.data.shape[0]
-        self.kwargs = {'sep_after': int(sep_after)}
+        try:
+            sep_after = int(sep_after)
+        except (TypeError, ValueError):
+            sep_after = np.inf
+
+        self.kwargs = {'sep_after': sep_after}
 
         # validate arguments
         '{{:{:s}}}'.format(float_fmt).format(1.0)
@@ -151,7 +156,7 @@ class HeadRow(object):
         self.ncol = 0
 
         if ncol_head > 0:
-            self.__cells.append(HeadCell('', span=ncol_head))
+            self.__cells.append(HeadCell('', span=ncol_head, placeholder=True))
             self.ncol += ncol_head
 
         for c in cells:
@@ -170,10 +175,15 @@ class HeadRow(object):
 
 
 class HeadCell(object):
-    def __init__(self, text, span=1, align=Alignment.center, sep=None):
-        self.text = text
+    def __init__(self, text, span=1, align=Alignment.center, sep=None,
+                 placeholder=False):
         self.span = span
         self.align = Alignment.parse(align)
+        self.placeholder = placeholder
+        self.text = text
+
+        if self.placeholder:
+            self.text = ''
 
         # By default, only show bottom separator for cells spanning more than
         # one column
