@@ -53,8 +53,6 @@ class Table(object):
         # validate arguments
         '{{:{:s}}}'.format(float_fmt).format(1.0)
         '{{:{:s}}}'.format(str_fmt).format('a')
-        if align is not None:
-            Alignment.parse(align)
 
         if row_labels is not None:
             if not isinstance(row_labels, (list, tuple, np.ndarray)):
@@ -81,6 +79,8 @@ class Table(object):
         # column alignment, both header and data
         if align is not None:
             align = as_list(align)
+            # Attempt to parse alignment values
+            align = [Alignment.parse(x) for x in align]
 
             # Got only one values, this must be for data columns. Project to
             # all other data columns and add alignment for row labels if
