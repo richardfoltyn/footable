@@ -67,6 +67,13 @@ class TeXFormat(OutputFormat):
         sl = kwargs['sep_after']
 
         nrow = data.shape[0]
+        # Convert separator to 1-based indices of rows after which separator
+        # should be printed.
+        if isinstance(sl, int):
+            ls = max(1, sl)
+            sl = np.arange(sl-1, nrow, sl)
+        else:
+            sl = np.unique(sl)
 
         fmt_list = ['{{arr[{:d}]:{:s}}}'.format(i, o.fmt)
                     for i, o in enumerate(columns)]
@@ -75,7 +82,11 @@ class TeXFormat(OutputFormat):
         for i in range(nrow):
             print(fmt_str.format(arr=data[i]), file=file)
 
-            if self.booktabs and (i + 1) % sl == 0 and i != (nrow-1):
+            # Do not print separator after last row as we'll add a bottom rule
+            # there.
+            do_sep = (i in sl) and i != (nrow-1)
+
+            if self.booktabs and do_sep:
                 print(r'\midrule', file=file)
 
     def render_hcell(self, hcell):

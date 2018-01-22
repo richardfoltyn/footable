@@ -21,6 +21,23 @@ class Table(object):
     def __init__(self, data, header=None, row_labels=None,
                  fmt=None, float_fmt='g', str_fmt='s', align=None,
                  sep_after=None, output_fmt=TeXFormat(booktabs=True)):
+        """
+        Create Table object with given properties.
+
+        Parameters
+        ----------
+        data : array_like
+        header : list
+        row_labels : list
+        fmt : list or str
+            List of column-specific format strings
+        float_fmt : str
+        str_fmt : str
+        align : Alignment or list
+            Column alignment specification
+        sep_after : int or array_like
+        output_fmt :
+        """
 
         self.data = np.atleast_2d(data)
 
@@ -30,10 +47,6 @@ class Table(object):
         self.ncol_data = self.data.shape[1]
         self.ncol_head = 0
         self.nrow = self.data.shape[0]
-        try:
-            sep_after = int(sep_after)
-        except (TypeError, ValueError):
-            sep_after = np.inf
 
         self.kwargs = {'sep_after': sep_after}
 
