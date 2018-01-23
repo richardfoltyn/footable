@@ -77,10 +77,34 @@ class TeXFormat(OutputFormat):
 
         fmt_list = ['{{arr[{:d}]:{:s}}}'.format(i, o.fmt)
                     for i, o in enumerate(columns)]
+
+        # Identify numeric columns and insert a formatting field for
+        # possible minus signs. We want minus signs to be printed as $-$.
+        isnum = np.array([c.isnumeric for c in columns], dtype=bool)
+        has_num = any(isnum)
+        inum = 0
+        for i, c in enumerate(columns):
+            if c.isnumeric:
+                fmt_list[i] = '{{sgn[{:d}]:s}}{:s}'.format(inum, fmt_list[i])
+                inum += 1
+
         fmt_str = ' & '.join(fmt_list) + r' \\'
 
+        inum = np.where(isnum)[0]
+
         for i in range(nrow):
-            print(fmt_str.format(arr=data[i]), file=file)
+            x = data[i]
+            if has_num:
+                # Check which elements are numeric and negative, and insert
+                # $-$ in that case.
+                neg = x[inum] < 0
+                sgn = ['$-$' if x else '' for x in neg]
+                # Apply abs. value to all numerical values since sign is
+                # taken care of separately.
+                x[inum] = np.abs(x[inum])
+                print(fmt_str.format(arr=data[i], sgn=sgn), file=file)
+            else:
+                print(fmt_str.format(arr=data[i]), file=file)
 
             # Do not print separator after last row as we'll add a bottom rule
             # there.

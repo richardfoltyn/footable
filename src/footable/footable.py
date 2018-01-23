@@ -125,7 +125,9 @@ class Table(object):
         assert len(fmt) == self.ncol
         assert len(align) == self.ncol
 
-        self.columns = [Column(align=a, fmt=f) for a, f in zip(align, fmt)]
+        isreal = [np.isreal(x) for x in self.data[0]]
+        self.columns = [Column(align=a, fmt=f, isnumeric=ir)
+                        for a, f, ir in zip(align, fmt, isreal)]
 
         if not isinstance(output_fmt, TeXFormat):
             raise NotImplementedError('Output format {} not '
@@ -212,9 +214,10 @@ class HeadCell(object):
 
 class Column(object):
 
-    def __init__(self, align, fmt):
+    def __init__(self, align, fmt, isnumeric=True):
         self.fmt = fmt
         self.align = Alignment.parse(align)
+        self.isnumeric = isnumeric
 
     def __str__(self):
         return 'Col({:s}, {{{:s}}})'.format(self.align, self.fmt)
