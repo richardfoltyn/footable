@@ -20,7 +20,9 @@ def as_list(val):
 class Table(object):
     def __init__(self, data, header=None, row_labels=None,
                  fmt=None, float_fmt='g', str_fmt='s', align=None,
-                 sep_after=None, output_fmt=TeXFormat(booktabs=True)):
+                 sep_after=None, sep_every=None, sep=None,
+                 output_fmt=TeXFormat(booktabs=True),
+                 nan_char='--'):
         """
         Create Table object with given properties.
 
@@ -36,6 +38,20 @@ class Table(object):
         align : Alignment or list
             Column alignment specification
         sep_after : int or array_like
+            Only present for backward compatibility.
+            Use sep or sep_every instead.
+        sep_every = int
+            If not None, specifies the number of rows after which a
+            horizontal rule should be inserted. Ignored if argument `sep` is
+            not None.
+        sep : int or array_like
+            If not None, specifies the list of rows after which horizontal
+            rules should be inserted. Overrides argument `sep_every`.
+            Note: Values are interpreted as zero-based row indices.
+        nan_char : str or None
+            If not None, character to insert into table cells whenever the
+            underlying data element is floating point an np.isnan evaluates
+            to true.
         output_fmt :
         """
 
@@ -48,7 +64,26 @@ class Table(object):
         self.ncol_head = 0
         self.nrow = self.data.shape[0]
 
-        self.kwargs = {'sep_after': sep_after}
+        # Consolidate horizontal rule arguments into a list of rows after
+        # which separators should be inserted.
+        if sep is not None:
+            sep = np.unique(sep)
+        elif sep_every is not None:
+            sep_every = int(sep_every)
+            sep = np.arange(sep_every-1, self.nrow, sep_every)
+        elif sep_after is not None:
+            # For backward compatibility, interpret the meaning of `sep_after`
+            # depending on whether it's an integer or something else.
+            # For integer values, we assume the same meaning as `sep_every`,
+            # and interpret it as `sep` otherwise.
+            if isinstance(sep_after, int):
+                sep_every = int(sep_after)
+                sep = np.arange(0, self.nrow, sep_every)
+            else:
+                sep = np.unique(sep_after)
+
+        # kwargs passed to renderer
+        self.kwargs = {'sep': sep, 'nan_char': nan_char}
 
         # validate arguments
         '{{:{:s}}}'.format(float_fmt).format(1.0)

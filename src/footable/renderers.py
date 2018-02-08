@@ -1,6 +1,9 @@
+from copy import deepcopy
+
 __author__ = 'Richard Foltyn'
 
 import numpy as np
+from numpy import logical_not as np_not
 
 from . import Alignment
 
@@ -63,17 +66,14 @@ class TeXFormat(OutputFormat):
         if self.booktabs and len(headers) > 0:
             print(r'\midrule', file=file)
 
-    def render_data(self, data, columns, file, **kwargs):
-        sl = kwargs['sep_after']
+    def render_data(self, data, columns, file, sep=None, nan_char=None,
+                    **kwargs):
 
         nrow = data.shape[0]
-        # Convert separator to 1-based indices of rows after which separator
-        # should be printed.
-        if isinstance(sl, int):
-            ls = max(1, sl)
-            sl = np.arange(sl-1, nrow, sl)
-        else:
-            sl = np.unique(sl)
+
+        # Use empty list of horizontal separators by default
+        if sep is None:
+            sep = tuple()
 
         fmt_list = ['{{arr[{:d}]:{:s}}}'.format(i, o.fmt)
                     for i, o in enumerate(columns)]
@@ -88,12 +88,29 @@ class TeXFormat(OutputFormat):
                 fmt_list[i] = '{{sgn[{:d}]:s}}{:s}'.format(inum, fmt_list[i])
                 inum += 1
 
-        fmt_str = ' & '.join(fmt_list) + r' \\'
+        fmt_list = np.array(fmt_list)
 
         inum = np.where(isnum)[0]
 
         for i in range(nrow):
             x = data[i]
+            # Isolate floating-point-type columns, otherwise we cannot call
+            # isnan() on an array with dtype=object
+            xx = np.array(x[inum], dtype=np.float64)
+            # Check if any NaNs are present and if they should be replaced.
+            fix_nan = nan_char is not None and np.any(np.isnan(xx))
+
+            fmt_list_i = np.copy(fmt_list)
+
+            if fix_nan:
+                inan_fix = inum[np.isnan(xx)]
+                # Overwrite formatting for array elements with NaNs
+                fmt_list_i[inan_fix] = nan_char
+            else:
+                fmt_list_i = fmt_list
+
+            fmt_str = ' & '.join(fmt_list_i) + r' \\'
+
             if has_num:
                 # Check which elements are numeric and negative, and insert
                 # $-$ in that case.
@@ -102,13 +119,13 @@ class TeXFormat(OutputFormat):
                 # Apply abs. value to all numerical values since sign is
                 # taken care of separately.
                 x[inum] = np.abs(x[inum])
-                print(fmt_str.format(arr=data[i], sgn=sgn), file=file)
+                print(fmt_str.format(arr=x, sgn=sgn), file=file)
             else:
-                print(fmt_str.format(arr=data[i]), file=file)
+                print(fmt_str.format(arr=x), file=file)
 
             # Do not print separator after last row as we'll add a bottom rule
             # there.
-            do_sep = (i in sl) and i != (nrow-1)
+            do_sep = (i in sep) and i != (nrow-1)
 
             if self.booktabs and do_sep:
                 print(r'\midrule', file=file)
