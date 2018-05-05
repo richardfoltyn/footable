@@ -93,13 +93,20 @@ class Table(object):
             if not isinstance(row_labels, (list, tuple, np.ndarray)):
                 row_labels = [row_labels] * self.nrow
             if not isinstance(row_labels, np.ndarray):
-                row_labels = np.atleast_2d(np.array(row_labels))
+                row_labels = np.atleast_1d(np.array(row_labels))
+
+            # Ensure that row labels at a 2d-array; if fewer than 2 dims are
+            # provided, assume that row labels should be rendered as single
+            # column.
+            if row_labels.ndim < 2:
+                row_labels = np.reshape(row_labels, (-1, 1))
 
             if row_labels.shape[0] != data.shape[0]:
                 if row_labels.shape[1] == data.shape[0]:
                     row_labels = row_labels.T
                 else:
-                    raise ValueError('Row label and data have non-conformable shape')
+                    m = 'Row label and data have non-conformable shape'
+                    raise ValueError(m)
 
             self.ncol_head = row_labels.shape[1]
             row_labels = np.array(row_labels, dtype=object)
