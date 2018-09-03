@@ -9,12 +9,34 @@ from . import TeXFormat
 
 
 def as_list(val):
+    """
+    Convert scalar or iterable value to list.
+
+    Parameters
+    ----------
+    val : object
+        Scalar or iterable object
+
+    Returns
+    -------
+    lst : list
+        List created from the elements of `val` if `val` is an iterable other
+        than string. In any other case, return value is a list containing
+        `val` as its only element.
+
+        If `val` is an instance of list, it is returned unchanged.
+    """
     if isinstance(val, list):
-        return val
-    elif isinstance(val, collections.Iterable):
-        return list(val)
+        lst = val
     else:
-        return [val]
+        if isinstance(val, str):
+            # Note: str is an Iterable, so check this first
+            lst = [val]
+        elif isinstance(val, collections.Iterable):
+            lst = list(val)
+        else:
+            lst = [val]
+    return lst
 
 
 class Table(object):
