@@ -138,6 +138,8 @@ class Table(object):
         self.ncol = self.ncol_head + self.ncol_data
 
         if header is not None:
+            if not isinstance(header, list):
+                header = as_list(header)
             self.append_header(header)
 
         # column alignment, both header and data
@@ -240,10 +242,7 @@ class HeadRow(object):
 
         for c in cells:
             if not isinstance(c, HeadCell):
-                if isinstance(c, str):
-                    kwargs = {'text': c}
-                else:
-                    kwargs = c
+                kwargs = {'text': str(c)}
                 c = HeadCell(**kwargs)
             self.ncol += c.span
             self.__cells.append(c)
