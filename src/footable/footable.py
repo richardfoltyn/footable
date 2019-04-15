@@ -51,8 +51,8 @@ class Table(object):
         Parameters
         ----------
         data : array_like
-        header : list
-        row_labels : list
+        header : array_like
+        row_labels : array_like
         fmt : list or str
             List of column-specific format strings
         float_fmt : str
@@ -62,7 +62,7 @@ class Table(object):
         sep_after : int or array_like
             Only present for backward compatibility.
             Use sep or sep_every instead.
-        sep_every = int
+        sep_every : int
             If not None, specifies the number of rows after which a
             horizontal rule should be inserted. Ignored if argument `sep` is
             not None.
