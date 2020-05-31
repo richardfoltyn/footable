@@ -191,7 +191,9 @@ class Table(object):
         assert len(fmt) == self.ncol
         assert len(align) == self.ncol
 
-        isreal = [np.isreal(x) for x in self.data[0]]
+        nrow, ncol = self.data.shape
+        isreal = [all(np.isreal(self.data[i, j]) for i in range(nrow))
+                  for j in range(ncol)]
         self.columns = [Column(align=a, fmt=f, isnumeric=ir)
                         for a, f, ir in zip(align, fmt, isreal)]
 
