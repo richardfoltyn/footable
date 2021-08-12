@@ -6,6 +6,7 @@ import collections
 
 from . import Alignment
 from . import TeXFormat
+from .helpers import anything_to_tuple, anything_to_list
 
 
 def as_list(val):
@@ -42,6 +43,7 @@ def as_list(val):
 class Table(object):
     def __init__(self, data, header=None, row_labels=None,
                  fmt=None, float_fmt='g', str_fmt='s', align=None,
+                 subheadings=None, linespacing=None,
                  sep_after=None, sep_every=None, sep=None,
                  output_fmt=TeXFormat(booktabs=True),
                  nan_char='--'):
@@ -59,6 +61,8 @@ class Table(object):
         str_fmt : str
         align : Alignment or list
             Column alignment specification
+        subheadings : Iterable of Subheading, optional
+        linespacing : Iterable of LineSpacing, optional
         sep_after : int or array_like
             Only present for backward compatibility.
             Use sep or sep_every instead.
@@ -202,6 +206,9 @@ class Table(object):
                                       'implemented.'.format(output_fmt))
         self.renderer = output_fmt
 
+        self.subheadings = anything_to_list(subheadings, force=True)
+        self.linespacing = anything_to_list(linespacing, force=True)
+
     def render(self, file):
 
         # assert that everything sums up to the same number of columns before
@@ -211,6 +218,8 @@ class Table(object):
             assert hr.ncol == self.ncol
 
         self.renderer.render(self.data, self.__header, self.columns, file,
+                             subheadings=self.subheadings,
+                             linespacing=self.linespacing,
                              **self.kwargs)
 
     def __str__(self):
@@ -231,6 +240,22 @@ class Table(object):
                             'match!')
 
         self.__header.append(h)
+
+    def add_subheading(self, sh):
+        """
+        Add subheadings to the table.
+
+        Parameters
+        ----------
+        sh : Subheading of Iterable of Subheading
+        """
+
+        items = anything_to_tuple(sh)
+
+        if self.subheadings is not None:
+            self.subheadings.extend(items)
+        else:
+            self.subheadings = items.copy()
 
 
 class HeadRow(object):
@@ -289,3 +314,45 @@ class Column(object):
 
     def __repr__(self):
         return self.__str__()
+
+
+class SubHeading:
+    """
+    Class that represents subheadings which span across all columns.
+    """
+    def __init__(self, text, row, style=None, align=Alignment.left,
+                 indent=None, rule=None, spacing=None):
+        """
+        Create object representing a subheading
+
+        Parameters
+        ----------
+        text : str
+        row : int
+        style : str, optional
+        align : Alignment, optional
+        indent : str, optional
+        rule : bool or int or float, optional
+        spacing : Sequence of str or str, optional
+            If `spacing` is an sequence, the first element determines the
+            additional spacing above the subheading, while the last element
+            determines the spacing below. If the value is a single string,
+            it is interpreted as the spacing below the subheading.
+        """
+
+        self.text = text
+        self.row = row
+        self.style = style.lower() if style else None
+        self.indent = indent
+        self.align = align
+        self.rule = rule
+        self.spacing = spacing
+
+
+class LineSpacing:
+    """
+    Class use to represent line spacings.
+    """
+    def __init__(self, row, height):
+        self.row = row
+        self.height = height

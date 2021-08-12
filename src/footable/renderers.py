@@ -6,6 +6,7 @@ import numpy as np
 from numpy import logical_not as np_not
 
 from . import Alignment
+from .helpers import anything_to_tuple
 
 
 class OutputFormat(object):
@@ -67,9 +68,28 @@ class TeXFormat(OutputFormat):
             print(r'\midrule', file=file)
 
     def render_data(self, data, columns, file, sep=None, nan_char=None,
-                    **kwargs):
+                    subheadings=None, linespacing=None, **kwargs):
+        """
+        Render data block of LaTeX table.
 
-        nrow = data.shape[0]
+        Parameters
+        ----------
+        data : np.ndarray
+        columns : Iterable
+        file :
+        sep : Sequence of int, optional
+        nan_char : str, optional
+            String used in place of NaN values.
+        subheadings : Iterable of footable.Subheading, optional
+        linespacing : Iterable of footable.LineSpacing, optional
+        kwargs
+        """
+
+        # columns include any row labels!
+        nrow, ncol = data.shape
+
+        subheadings = anything_to_tuple(subheadings, force=True)
+        linespacing = anything_to_tuple(linespacing, force=True)
 
         # Use empty list of horizontal separators by default
         if sep is None:
@@ -93,7 +113,34 @@ class TeXFormat(OutputFormat):
         inum = np.where(isnum)[0]
 
         for i in range(nrow):
+
+            # --- Process any subheading for this row ---
+
+            shs = [sh for sh in subheadings if sh.row == i]
+            for sh in shs:
+                spacing = anything_to_tuple(sh.spacing, force=True)
+                if len(spacing) > 1:
+                    print(rf'\addlinespace[{spacing[0]}] ', file=file)
+                txt = _apply_style(sh.text, sh.style)
+                if ncol > 1:
+                    txt = rf'\multicolumn{{{ncol}}}{{{self.mappings[sh.align]}}}{{{txt}}}'
+                txt += r' \\'
+                print(txt, file=file)
+
+                if sh.rule is not None:
+                    try:
+                        width = float(sh.rule)
+                        # midrule with user-specified width
+                        print(rf'\midrule[{width}]', file=file)
+                    except TypeError:
+                        # midrule with default width
+                        print(rf'\midrule')
+
+                if spacing:
+                    print(rf'\addlinespace[{spacing[-1]}] ', file=file)
+
             x = data[i]
+
             # Isolate floating-point-type columns, otherwise we cannot call
             # isnan() on an array with dtype=object
             xx = np.array(x[inum], dtype=np.float64)
@@ -119,9 +166,13 @@ class TeXFormat(OutputFormat):
                 # Apply abs. value to all numerical values since sign is
                 # taken care of separately.
                 x[inum] = np.abs(x[inum])
-                print(fmt_str.format(arr=x, sgn=sgn), file=file)
+                txt = fmt_str.format(arr=x, sgn=sgn)
             else:
-                print(fmt_str.format(arr=x), file=file)
+                txt = fmt_str.format(arr=x)
+
+            # Do quick and dirty LaTeX replacement of problematic characters
+            txt = txt.replace('%', r'\%')
+            print(txt, file=file)
 
             # Do not print separator after last row as we'll add a bottom rule
             # there.
@@ -130,6 +181,12 @@ class TeXFormat(OutputFormat):
             if self.booktabs and do_sep:
                 print(r'\midrule', file=file)
 
+            # --- Process line spacing for this row ---
+
+            lspacing = [lsp for lsp in linespacing if lsp.row == i]
+            for lsp in lspacing:
+                print(rf'\addlinespace[{lsp.height}] ', file=file)
+
     def render_hcell(self, hcell):
         if hcell.span > 1:
             s = r'\multicolumn{{{o.span}}}{{{a}}}{{{o.text}}}'.format(
@@ -137,3 +194,19 @@ class TeXFormat(OutputFormat):
         else:
             s = hcell.text
         return s
+
+
+def _apply_style(text, style=None):
+    if not style:
+        return text
+
+    style = style.lower()
+
+    if style == 'italic':
+        s = rf'\textit{{{text}}}'
+    elif style == 'bold':
+        s = rf'\textbf{{{text}}}'
+    else:
+        raise ValueError(f'Unsupported style {style}')
+
+    return s
