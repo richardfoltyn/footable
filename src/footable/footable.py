@@ -33,7 +33,7 @@ def as_list(val):
         if isinstance(val, str):
             # Note: str is an Iterable, so check this first
             lst = [val]
-        elif isinstance(val, collections.Iterable):
+        elif isinstance(val, collections.abc.Iterable):
             lst = list(val)
         else:
             lst = [val]
