@@ -1,3 +1,4 @@
+import re
 from copy import deepcopy
 
 __author__ = 'Richard Foltyn'
@@ -171,7 +172,7 @@ class TeXFormat(OutputFormat):
                 txt = fmt_str.format(arr=x)
 
             # Do quick and dirty LaTeX replacement of problematic characters
-            txt = txt.replace('%', r'\%')
+            txt = re.sub(r'(?P<char>%)', r'\\\g<char>', txt)
             print(txt, file=file)
 
             # Do not print separator after last row as we'll add a bottom rule
