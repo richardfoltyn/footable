@@ -1,13 +1,36 @@
-import re
-from copy import deepcopy
 
 __author__ = 'Richard Foltyn'
 
 import numpy as np
-from numpy import logical_not as np_not
+import re
 
-from . import Alignment
+from .enums import Alignment
 from .helpers import anything_to_tuple
+
+
+TEX_ESCAPE_MAP = {
+    r'%': r'\%',
+    r'&': r'\&'
+}
+
+TEX_PATTERN = r'(?<=[^\\])(%|\&)'
+TEX_REGEX = re.compile(TEX_PATTERN)
+
+
+def tex_escape(text: str) -> str:
+    """
+    Escape TeX special characters in given text.
+
+    Parameters
+    ----------
+    text : str
+
+    Returns
+    -------
+    str
+    """
+    s = TEX_REGEX.sub(lambda match: TEX_ESCAPE_MAP[match.group()], text)
+    return s
 
 
 class OutputFormat(object):
@@ -142,6 +165,10 @@ class TeXFormat(OutputFormat):
 
             x = data[i]
 
+            # TeX: escape all string data
+            x = np.array([tex_escape(v) if isinstance(v, str) else v for v in x],
+                         dtype=object)
+
             # Isolate floating-point-type columns, otherwise we cannot call
             # isnan() on an array with dtype=object
             xx = np.array(x[inum], dtype=np.float64)
@@ -171,8 +198,9 @@ class TeXFormat(OutputFormat):
             else:
                 txt = fmt_str.format(arr=x)
 
-            # Do quick and dirty LaTeX replacement of problematic characters
-            txt = re.sub(r'(?P<char>%)', r'\\\g<char>', txt)
+            # Do quick and dirty LaTeX replacement of %, including only those that
+            # are not preceded by \
+            txt = re.sub(r'(?<=[^\\])(?P<char>%)', r'\\\g<char>', txt)
             print(txt, file=file)
 
             # Do not print separator after last row as we'll add a bottom rule
@@ -188,12 +216,13 @@ class TeXFormat(OutputFormat):
             for lsp in lspacing:
                 print(rf'\addlinespace[{lsp.height}] ', file=file)
 
-    def render_hcell(self, hcell):
+    def render_hcell(self, hcell) -> str:
+        text = tex_escape(hcell.text)
         if hcell.span > 1:
-            s = r'\multicolumn{{{o.span}}}{{{a}}}{{{o.text}}}'.format(
-                o=hcell, a=self.mappings[hcell.align])
+            s = r'\multicolumn{{{o.span}}}{{{a}}}{{{text}}}'.format(
+                o=hcell, a=self.mappings[hcell.align], text=text)
         else:
-            s = hcell.text
+            s = text
         return s
 
 
