@@ -218,11 +218,8 @@ class TeXFormat(OutputFormat):
 
     def render_hcell(self, hcell) -> str:
         text = tex_escape(hcell.text)
-        if hcell.span > 1:
-            s = r'\multicolumn{{{o.span}}}{{{a}}}{{{text}}}'.format(
-                o=hcell, a=self.mappings[hcell.align], text=text)
-        else:
-            s = text
+        s = r'\multicolumn{{{o.span}}}{{{a}}}{{{text}}}'.format(
+            o=hcell, a=self.mappings[hcell.align], text=text)
         return s
 
 
