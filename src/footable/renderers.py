@@ -143,22 +143,23 @@ class TeXFormat(OutputFormat):
             shs = [sh for sh in subheadings if sh.row == i]
             for sh in shs:
                 spacing = anything_to_tuple(sh.spacing, force=True)
+                rules = anything_to_tuple(sh.rule, force=True)
                 if len(spacing) > 1:
                     print(rf'\addlinespace[{spacing[0]}] ', file=file)
+
+                # Rule above subheader
+                if len(rules) > 0:
+                    self._render_mid_rule(rules[0], file)
+
                 txt = _apply_style(sh.text, sh.style)
                 if ncol > 1:
                     txt = rf'\multicolumn{{{ncol}}}{{{self.mappings[sh.align]}}}{{{txt}}}'
                 txt += r' \\'
                 print(txt, file=file)
 
-                if sh.rule is not None:
-                    try:
-                        width = float(sh.rule)
-                        # midrule with user-specified width
-                        print(rf'\midrule[{width}]', file=file)
-                    except TypeError:
-                        # midrule with default width
-                        print(rf'\midrule')
+                # Print rule below the subheading
+                if len(rules) > 1:
+                    self._render_mid_rule(rules[1], file)
 
                 if spacing:
                     print(rf'\addlinespace[{spacing[-1]}] ', file=file)
@@ -205,7 +206,7 @@ class TeXFormat(OutputFormat):
 
             # Do not print separator after last row as we'll add a bottom rule
             # there.
-            do_sep = (i in sep) and i != (nrow-1)
+            do_sep = (i in sep) and i != (nrow - 1)
 
             if self.booktabs and do_sep:
                 print(r'\midrule', file=file)
@@ -221,6 +222,26 @@ class TeXFormat(OutputFormat):
         s = r'\multicolumn{{{o.span}}}{{{a}}}{{{text}}}'.format(
             o=hcell, a=self.mappings[hcell.align], text=text)
         return s
+
+    @staticmethod
+    def _render_mid_rule(spec, file) -> None:
+        """
+        Render mid rule in LaTeX table.
+
+        Parameters
+        ----------
+        spec :
+            bool or compatible with specification
+        file :
+            File handle
+        """
+        if spec:
+            if isinstance(spec, bool):
+                # midrule with default width
+                print(rf'\midrule', file=file)
+            else:
+                # midrule with user-specified width
+                print(rf'\midrule[{spec}]', file=file)
 
 
 def _apply_style(text, style=None):
