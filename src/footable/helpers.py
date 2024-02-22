@@ -1,4 +1,9 @@
+"""
+This work is licensed under CC BY 4.0,
+https://creativecommons.org/licenses/by/4.0/
 
+Author: Richard Foltyn
+"""
 def anything_to_list(value, force=False):
     """
     Covert a given value to a list (with potentially only one element).
